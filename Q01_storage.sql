@@ -101,3 +101,4 @@ SELECT
     min(refunded_at) AS earliest_refund,
     max(refunded_at) AS latest_refund
 FROM 'data/refunds.csv';
+
