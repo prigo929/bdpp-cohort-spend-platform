@@ -2,36 +2,38 @@
 
 **Course:** Big Data: Persistence Systems and Data Processing Languages  
 **Academic Program:** Master SDBIS, Faculty of Economics and Business Administration (FEAA), Alexandru Ioan Cuza University of Iași  
+**Lecturer:** Ionuț Hrubaru, PhD  
 **Project:** Customer Cohort Spend Evolution (Q1 Mini Data Platform)  
-**Deliverable Scope:** Storage Layer Architecture & Technical Decision Defense (Formative evaluation, no functional platform required at this checkpoint, no presentation slides).
+**Deliverable Scope:** Storage Layer Architecture & Technical Decision Defense (Formative evaluation, half-laboratory, no slides, no running code required yet, individual oral defense).
 
 **Target Analytical Question (Q1 from Annex A):**
-> *"How does spend evolve for customers grouped by the month they first ordered?"*
+> *"How does spend evolve for customers grouped by the month they first ordered?"*  
+> **What Q1 forces you to decide (Annex A):** *"A cohort dimension and a complete date spine, with no gaps."*
 
 ---
 
 ## 1. Storage Architecture Diagram (MinIO / S3)
 
-The diagram below details the end-to-end data layout within the MinIO object store (`s3://lab/`), showing the transition from PostgreSQL raw ingest to clean partitioned Parquet files managed by an open table format.
+The architecture below captures the end-to-end data lifecycle on MinIO (`s3://lab/`) conforming strictly to the platform stack (PostgreSQL, Python, DuckDB, dbt, MinIO).
 
 ### 1.1 Architecture Flowchart (Mermaid)
 
 ```mermaid
 flowchart TD
-    subgraph SRC["Source Layer"]
-        PG[("PostgreSQL Database<br/>orders, order_lines, refunds")]
+    subgraph SRC["Source Layer (OLTP)"]
+        PG[("PostgreSQL Source<br/>orders, order_lines, refunds<br/>(Late refunds up to 40 days, no PK)")]
     end
 
     subgraph MINIO["MinIO Object Storage (s3://lab/)"]
         subgraph RAW["1. Raw Ingestion Zone (s3://lab/raw/)"]
             R1["raw_orders.parquet"]
             R2["raw_order_lines.parquet"]
-            R3["raw_refunds.parquet"]
+            R3["raw_refunds.parquet<br/>(Preserves duplicates as-is)"]
         end
 
-        subgraph TABLE_FORMAT["3. Metadata Layer / Table Format (Apache Iceberg / DuckLake)"]
-            META["table_metadata.json<br/>- Schema Definition & Evolution<br/>- Snapshot Manifest List<br/>- Data File Column Statistics (Min/Max)"]
-            SNAP["Snapshots & ACID Commits<br/>- Point-in-time snapshot isolation<br/>- Compaction logs<br/>- Atomic updates for late refunds"]
+        subgraph TABLE_FORMAT["3. Metadata Layer / Table Format (Iceberg / DuckLake)"]
+            META["table_metadata.json<br/>- Schema Definition & Types<br/>- Snapshot Manifest List<br/>- Column Statistics (Min/Max, Nulls)"]
+            SNAP["Snapshots & ACID Commits<br/>- Snapshot isolation for readers<br/>- Compaction logs<br/>- Atomic partition swaps for 40-day refunds"]
             META --> SNAP
         end
 
@@ -39,20 +41,20 @@ flowchart TD
             direction TB
             P1["s3://lab/by_month/sale_month=2021-01-01/data_0.parquet (~1.2 MiB)"]
             P2["s3://lab/by_month/sale_month=2021-02-01/data_0.parquet (~1.2 MiB)"]
-            P3["... (36 monthly partitions) ..."]
+            P3["... (36 monthly partitions, 3 full years) ..."]
             P4["s3://lab/by_month/sale_month=2023-12-01/data_0.parquet (~1.2 MiB)"]
         end
     end
 
     subgraph COMPUTE["Query & Transformation Engine (DuckDB / dbt)"]
-        DUCK["DuckDB Execution Engine<br/>- Projection Pushdown (customer_id, created_at, quantity, unit_price)<br/>- Partition Pruning (sale_month)<br/>- HTTP Range Requests (s3://)"]
-        OUT["Q1 Cohort Spend Matrix<br/>(Cohort Month x Activity Month)"]
+        DUCK["DuckDB Execution Engine (Vectorized)<br/>- Projection Pushdown (4 columns)<br/>- Partition Pruning (sale_month)<br/>- HTTP Range Requests (s3://)"]
+        OUT["Q1 Cohort Spend Matrix<br/>(Cohort Month x Activity Month x Net Spend)"]
     end
 
     PG -- "extract/extract_to_minio.py" --> RAW
     RAW -- "scripts/partition_storage.sql" --> LAYOUT
     SNAP -. "tracks manifests & active data files" .-> LAYOUT
-    DUCK -- "1. Reads Table Metadata & Snapshot" --> META
+    DUCK -- "1. Reads Table Metadata & Active Snapshot" --> META
     DUCK -- "2. Targeted HTTP Range GETs" --> LAYOUT
     DUCK --> OUT
 ```
@@ -61,141 +63,171 @@ flowchart TD
 
 ```text
 s3://lab/
-├── raw/                                        <-- RAW INGESTION ZONE
-│   ├── raw_orders.parquet                      (Direct bulk export from PostgreSQL)
+├── raw/                                        <-- 1. RAW INGESTION ZONE
+│   ├── raw_orders.parquet                      (Bulk immutable export from PostgreSQL)
 │   ├── raw_order_lines.parquet
-│   └── raw_refunds.parquet
+│   └── raw_refunds.parquet                     (Includes duplicates from redeliveries)
 │
-├── by_month/                                   <-- CLEAN / PARTITIONED STORAGE LAYOUT
-│   ├── metadata/                               <-- METADATA LAYER (TABLE FORMAT)
-│   │   ├── v1.metadata.json                    (Schema definitions, snapshot pointers)
-│   │   ├── snap-20231103-01.avro               (Manifest list of active data files)
-│   │   └── manifest-file-01.avro               (Partition stats, file paths, min/max values)
+├── by_month/                                   <-- 2. CLEAN PARTITIONED STORAGE LAYOUT
+│   ├── metadata/                               <-- 3. METADATA LAYER (TABLE FORMAT)
+│   │   ├── v1.metadata.json                    (Schema, partition specs, snapshot log)
+│   │   ├── snap-20231103-01.avro               (Manifest list of active Parquet files)
+│   │   └── manifest-file-01.avro               (File paths, row counts, min/max statistics)
 │   │
 │   ├── sale_month=2021-01-01/                  <-- HIVE-STYLE PARTITIONS
 │   │   └── data_0.parquet                      (~1.2 MiB, Snappy compressed, dictionary encoded)
 │   ├── sale_month=2021-02-01/
 │   │   └── data_0.parquet
-│   ├── ...                                     (36 partitions spanning 3 full years)
+│   ├── ...                                     (36 uniform monthly partitions for 3 years)
 │   └── sale_month=2023-12-01/
 │       └── data_0.parquet
 ```
 
-### 1.3 Architectural Layer Breakdown
+### 1.3 How to Sketch This on Paper in 30 Seconds During the Defense
 
-1. **Raw Zone (`s3://lab/raw/`):**
-   * High-fidelity, immutable snapshot of the PostgreSQL tables dumped in bulk as Parquet.
-   * Preserves full source schemas without alteration, allowing complete reprocessing without re-querying the operational OLTP database.
-2. **Partitioned / Clean Storage Layout (`s3://lab/by_month/sale_month=YYYY-MM-01/`):**
-   * Denormalized analytical base organized in standard Hive-style partition folders.
-   * Consolidated into single files per month (~1.2 MiB each for this dataset), eliminating file fragmentation.
-3. **Metadata Layer / Table Format (e.g., Apache Iceberg / DuckLake):**
-   * Sits on top of the physical Parquet files.
-   * Maintains snapshot isolation, manifest trees, schema evolution, and file-level metrics (row counts, null counts, min/max bounds), shielding analytical queries from raw storage churn.
+When Dr. Hrubaru asks you to draw your storage architecture on paper or the whiteboard:
+1. Draw a box on the left: **PostgreSQL** (`orders`, `order_lines`, `refunds`).
+2. Draw a big container for **MinIO (`s3://lab/`)** with three horizontal boxes:
+   * **Top:** `raw/` (`raw_orders.parquet`, `raw_refunds.parquet` with duplicates).
+   * **Middle:** `by_month/metadata/` (Table format: schema + snapshot manifests).
+   * **Bottom:** `by_month/sale_month=YYYY-MM-01/data_0.parquet` (36 files, ~1.2 MiB each).
+3. Draw a box on the right: **DuckDB / dbt**.
+4. Draw arrows:
+   * Arrow 1: Ingest Python script writes raw Parquet to `raw/`.
+   * Arrow 2: DuckDB partition script writes partitioned Parquet to `by_month/`.
+   * Arrow 3: Metadata points to active Parquet partitions.
+   * Arrow 4: DuckDB reads metadata first, then uses HTTP Range requests on Parquet.
 
 ---
 
-## 2. The 4 Mandatory Technical Decisions (Defended for Q1)
+## 2. The 4 Mandatory Decisions (Defended for Q1)
 
-Each team member must be prepared to articulate the choice made, the rejected options, and the specific justification tied to Q1.
+Dr. Hrubaru expects arguments formulated in the **3-Sentence Structure**:
+1. **The Choice.**
+2. **The Rejected Alternative (with a direct reason from Q1).**
+3. **The Cost of the choice (the trade-off you accept).**
+
+---
 
 ### Decision A: File Format (Parquet vs. CSV / JSON)
 
-* **Our Choice:** **Apache Parquet** (Columnar format with Snappy/Zstd compression and embedded statistics).
-* **Rejected Alternatives:**
-  * **CSV:** Row-based and uncompressed by default. Lacks data types (requiring CPU-intensive type inference and parsing on every read). Inability to project individual columns forces full-line I/O.
-  * **JSON / JSON Lines:** Massive text overhead due to repeating schema keys on every line. Very slow to parse in vectorized query engines.
-* **Q1 Justification:**
-  * Cohort spend analysis measures customer expenditure over time. It strictly requires **only 4 columns** from the transaction line items: `customer_id`, `created_at`, `quantity`, and `unit_price`.
-  * Parquet stores data column-by-column rather than row-by-row. When DuckDB queries MinIO over S3, it leverages **column projection pushdown**: it issues HTTP `Range` GET requests targeting *only the byte offsets* of those 4 columns, skipping 80%+ of physical I/O and all unneeded transactional fields (e.g., billing notes, delivery addresses, transaction tokens).
+* **Sentence 1 (Choice):**  
+  *"We store analytical data in columnar Apache Parquet files with Snappy compression."*
+* **Sentence 2 (Rejected Alternative & Q1 Reason):**  
+  *"We rejected CSV and JSON lines because answering Q1 (cohort spend evolution) requires reading only 4 columns (`customer_id`, `created_at`, `quantity`, `unit_price`), whereas row-based formats force scanning all unused attributes like delivery addresses and payment tokens."*
+* **Sentence 3 (Cost & Trade-off):**  
+  *"The cost of our choice is that data cannot be directly inspected with standard Unix text tools and writes require schema-on-write CPU overhead; we accept it because Parquet projection pushdown eliminates over 80% of network I/O over MinIO S3 HTTP requests."*
 
 ---
 
 ### Decision B: Partition Key (`sale_month=YYYY-MM-01`)
 
-* **Our Choice:** **Calendar transaction month** (`sale_month=YYYY-MM-01`).
-* **Rejected Alternatives:**
-  * **Partitioning by `customer_id`:** Catastrophic small-files antipattern. With 119,975 distinct customers in the dataset, this would create 119,975 directories containing tiny files of roughly 16 rows (~0.4 KiB each). Query engines would stall while issuing hundreds of thousands of HTTP `LIST` and `GET` requests to MinIO just to read footers.
-  * **Partitioning by Day (`sale_day=YYYY-MM-DD`):** Over-partitioning. For a 3-year historical dataset, this fragments data into 1,096 files of tens of kilobytes each, multiplying HTTP request overhead without providing analytical pruning benefits.
-  * **No Partitioning (Single monolithic file):** Every run of the cohort calculation or monthly incremental update would be forced to perform a full table scan across the entire multi-year transaction history.
-* **Q1 Justification:**
-  * Q1 evaluates customer groups based on their first order month and measures their spend evolution across subsequent calendar months. The **natural granularity of the analytical question is monthly**.
-  * Creating 36 uniform monthly files (for 3 years) allows DuckDB to perform **partition pruning**: when calculating spend for a specific timeframe or cohort, the engine skips irrelevant monthly directories entirely, drastically reducing scan times.
+* **Sentence 1 (Choice):**  
+  *"We partition transaction data by calendar month of sale (`sale_month=YYYY-MM-01`)."*
+* **Sentence 2 (Rejected Alternative & Q1 Reason):**  
+  *"We rejected partitioning by `customer_id` because 119,975 customers would produce 119,975 tiny files of 16 rows (~400 bytes), paralyzing MinIO with listing and footer latency; and we rejected daily partitioning (`sale_day`) because Q1 evaluates cohorts at a monthly grain, making 1,096 daily files an unnecessary fragmentation."*
+* **Sentence 3 (Cost & Trade-off):**  
+  *"The cost of our choice is that within each monthly partition DuckDB must scan the full month to filter individual customers; we accept it because 36 uniform monthly files align exactly with Q1's analytical grain and allow perfect partition pruning when evaluating specific cohorts."*
 
 ---
 
 ### Decision C: File Sizing Strategy
 
-* **Our Choice:** **Consolidated single files per partition**, targeting the production standard of **100 MiB to 512 MiB**; adapted to **~1.2 MiB per file** for our didactic dataset (~42 MiB across 36 months).
-* **Rejected Alternatives:** Micro-batch streaming partitions yielding hundreds of sub-megabyte fragments.
-* **Q1 Justification:**
-  * Object storage (MinIO / AWS S3) charges a heavy latency penalty for high request counts compared to local disk seek operations. Opening *any* Parquet file on S3 requires at least **two round-trip HTTP requests**:
-    1. A `GET` request for the file footer to parse schema and row-group boundaries.
-    2. A `Range GET` request to retrieve data pages for the selected columns.
-  * For our 42 MiB dataset, grouping into 36 monthly files yields ~1.2 MiB per file. This size avoids the small-files penalty while ensuring dictionaries and run-length encodings are maximally compressed across an entire month’s worth of transactions.
+* **Sentence 1 (Choice):**  
+  *"We consolidate data into single files per partition, targeting the production standard of 100 MiB to 512 MiB, yielding ~1.2 MiB per month for our 42 MiB didactic dataset."*
+* **Sentence 2 (Rejected Alternative & Q1 Reason):**  
+  *"We rejected micro-batching or multiple files per partition because every Parquet file on object storage requires at least two HTTP round-trips (one GET for the footer/metadata and one Range GET for data pages), which would drown queries in network latency."*
+* **Sentence 3 (Cost & Trade-off):**  
+  *"The cost of our choice is that monthly writes must be coalesced in memory before committing to S3; we accept it because ~1.2 MiB maximizes dictionary encoding efficiency and provides near-instant vector scans in DuckDB."*
 
 ---
 
-### Decision D: Table Format Adoption (Apache Iceberg / DuckLake)
+### Decision D: Whether a Table Format is Warranted (Iceberg / DuckLake)
 
-* **Our Choice:** **Yes, justified.** Implementing an open table format abstraction on top of the Parquet files is essential.
-* **Rejected Alternative:** Plain, unmanaged Hive-style directory scanning (`read_parquet('s3://lab/by_month/**/*.parquet')`).
-* **Q1 Justification:**
-  * **Late-Arriving Refunds:** Payment provider refunds arrive **up to 40 days after the purchase**. If an order placed in March is refunded in April, the net spend for March's cohort must be updated retroactively.
-  * **ACID Transactions & Snapshot Isolation:** In raw Parquet, modifying historical March data requires rewriting physical files. If an analyst runs a cohort spend query while this rewrite is occurring, the query will read incomplete files, duplicate rows, or fail with 404 missing object errors.
-  * A table format uses manifest pointers and snapshot commits. A refund update generates a new snapshot atomically; concurrent queries continue reading the previous consistent snapshot until the update commit completes. Furthermore, table formats enable background compaction without downtime.
+* **Sentence 1 (Choice):**  
+  *"Yes, an open table format abstraction on top of Parquet files is architecturally warranted for Q1."*
+* **Sentence 2 (Rejected Alternative & Q1 Reason):**  
+  *"We rejected unmanaged Hive directory scraping (`read_parquet('s3://lab/by_month/**/*.parquet')`) because refunds arrive up to 40 days late, meaning an April refund for a March order requires retroactively updating March's net spend—which in raw Parquet risks concurrent readers hitting partially rewritten or missing files."*
+* **Sentence 3 (Cost & Trade-off):**  
+  *"The cost of our choice is the metadata management complexity of tracking snapshot manifests; we accept it because ACID snapshot isolation allows retroactive refund updates without corrupting in-flight cohort queries."*
+
+> **Crucial Defense Follow-up (5-Tool Constraint vs Table Format):**  
+> If Dr. Hrubaru asks: *"Section 5 of my brief states that Iceberg is demonstrated in lectures and is NOT in your 5 platform tools. How do you implement this in your running platform?"*  
+> **Your Answer:**  
+> *"Architecturally, the storage layer design warrants a table format contract because of 40-day late refunds. However, to respect the strict 5-tool, 2-container operational constraint (no JVM, no catalog server), we realize these exact guarantees in our working platform by leveraging **dbt atomic table/partition replacement transactions executed inside DuckDB**, ensuring readers only ever query committed state without deploying an external Iceberg catalog."*
 
 ---
 
-## 3. Defense Preparation for the Specific Q1 Question
+## 3. Defense Preparation for the Specific Q1 Question (Annex A)
 
-### The Professor's Question
-> *"How do you handle the requirement from Annex A: **'A cohort dimension and a complete date spine, with no gaps'**?"*
+### The Mandatory Requirement:
+> *"A cohort dimension and a complete date spine, with no gaps."*
 
-### The Answer
+### Why Q1 Fails Without This (The Sparsity Problem)
+Real-world retail customers do not purchase every consecutive month. If a cohort (e.g., customers acquired in `2021-01`) places orders in Month 0 (`2021-01`) and Month 2 (`2021-03`), but makes zero purchases in Month 1 (`2021-02`):
+* A naive SQL query with `GROUP BY cohort_month, order_month` will **omit Month 1 completely**.
+* If Month 1 is missing, downstream calculations (retention matrices, average order decay curves, rolling 3-month spend) will treat Month 2 as Month 1, shifting the timeline and producing mathematically false metrics.
 
-Customer purchasing behavior in retail datasets is naturally sparse: individual customers and even smaller customer segments do not place orders every consecutive month. 
-
-If months without orders are omitted (which occurs naturally in an unspined `GROUP BY cohort_month, order_month`), the resulting cohort spend matrix will have missing cells. This distorts cohort retention percentages, average customer spend curves, and cumulative Lifetime Value (LTV) calculations.
-
-#### Implementation in the dbt Dimensional Layer
-
-We solve this cleanly in our dbt pipeline across three models:
+### The dbt Solution Architecture
 
 ```text
-stg_orders + stg_lines ──► int_cohort_customers ──┐
-                                                  ├─► int_date_spine_cohort_cross ──► fct_cohort_monthly_spend
-              generate_series ──► int_date_spine ─┘   (Cartesian Grid + LEFT JOIN)    (COALESCE spend to 0.00)
+[stg_orders] ──► [int_cohort_customers] (Calculate first_order_month per customer)
+                        │
+                        ▼ (CROSS JOIN with valid calendar months)
+[int_date_spine] ──► [Cartesian Grid: all Cohort Months x Activity Months where Activity >= Cohort]
+                        │
+                        ▼ (LEFT JOIN on actual net spend)
+[fct_cohort_monthly_spend] ──► COALESCE(spend, 0.00) prevents missing periods
 ```
 
-1. **Customer Cohort Dimension (`int_cohort_customers`):**  
-   We calculate each customer's first purchase date using `MIN(created_at)` and truncate it to month start (`first_order_month`), permanently assigning them to a fixed acquisition cohort.
-2. **Continuous Date Spine (`int_date_spine`):**  
-   We generate an unbroken monthly timeline from the earliest order to the latest order using DuckDB's `generate_series`:
+1. **Cohort Dimension (`int_cohort_customers`):**  
+   We extract each customer's earliest order timestamp: `MIN(created_at)` truncated to the first day of the month (`first_order_month`). This fixes each customer into an immutable acquisition cohort.
+2. **Complete Date Spine (`int_date_spine`):**  
+   We generate an unbroken sequence of 36 months using DuckDB's `range()` / `generate_series()`:
    ```sql
-   SELECT CAST(range AS DATE) AS calendar_month
-   FROM range(DATE '2021-01-01', DATE '2023-12-01' + INTERVAL 1 MONTH, INTERVAL 1 MONTH);
+   SELECT CAST(range AS DATE) AS activity_month
+   FROM range(DATE '2021-01-01', DATE '2024-01-01', INTERVAL 1 MONTH);
    ```
-3. **Cartesian Product (Dense Grid):**  
-   We cross join each cohort with all calendar months where `calendar_month >= cohort_month`. This builds a full, dense grid of all possible (Cohort Month, Activity Month) pairs.
+3. **Cartesian Product (Dense Lifecycle Grid):**  
+   We cross join each cohort month with all activity months where `activity_month >= cohort_month` (since a cohort cannot spend before it was acquired).
 4. **Left Join & Zero-Padding (`fct_cohort_monthly_spend`):**  
-   We `LEFT JOIN` actual aggregated net spend onto this dense grid. For any month in which a cohort placed zero orders, the resulting `NULL` is explicitly converted to `0.00`:
+   We `LEFT JOIN` transaction spend onto this dense grid. Inactive months return `NULL`, which is explicitly coalesced:
    ```sql
-   COALESCE(SUM(lines.quantity * lines.unit_price - COALESCE(refunds.amount, 0)), 0.00) AS net_spend
+   COALESCE(SUM(lines.quantity * lines.unit_price - COALESCE(refunds.amount, 0)), 0.00) AS net_cohort_spend
    ```
-
-**Outcome:** Every cohort has an uninterrupted time series ($T_0, T_1, T_2, \dots, T_{35}$), ensuring exact mathematical consistency in cohort heatmaps and decay curves.
 
 ---
 
-## 4. Quick Oral Defense Cheat Sheet
+## 4. The 40-Day Late Refund Defense (A Classic Interview Question)
 
-| Technical Question | Concise Defense (10–15 Seconds) |
+Dr. Hrubaru's brief specifically states:
+> *"what happens to a published number when a refund arrives forty days late."*
+
+### How to Answer:
+
+| Accounting Strategy | What Happens | Why We Choose It for Q1 |
+| :--- | :--- | :--- |
+| **Strategy 1: Restate History (Order Month)**<br/>*(Our Choice)* | When a March order is refunded in April (40 days later), the refund is attributed to **March's cohort spend**. | **Q1 measures cohort spend evolution.** If we booked the refund in April, April would show negative spend for a customer who bought nothing in April! For true cohort LTV, refunds must reduce the revenue of the cohort acquisition/order period. The published March number changes retroactively, which is why snapshots are required. |
+| **Strategy 2: Cash Accounting (Refund Month)**<br/>*(Rejected for Q1)* | The refund is booked in the month it was issued (April). March's published number remains static. | Rejected because it pollutes Month 1 activity with Month 0 returns, distorting customer retention and basket value decay. |
+
+### How to Handle Refund Redeliveries and Missing Primary Keys:
+Annex A states: *"the refunds feed that arrives up to forty days late, carries no primary key, and is occasionally redelivered."*
+* **In Raw Zone:** We land refunds as-is, preserving duplicates (lost duplicate = lost observation).
+* **In dbt Staging:** We generate a deterministic surrogate key using `dbt_utils.generate_surrogate_key(['order_id', 'refund_date', 'amount'])` and apply `ROW_NUMBER() OVER (PARTITION BY surrogate_key ORDER BY ingested_at DESC) = 1` to deduplicate redelivered files cleanly.
+
+---
+
+## 5. Quick Oral Defense Cheat Sheet (Master Reference)
+
+| Question from Professor | Your 10-Second Bulletproof Answer |
 | :--- | :--- |
-| **Why Parquet instead of CSV?** | *"Parquet provides columnar storage and projection pushdown. Q1 only requires 4 columns (`customer_id`, `created_at`, `quantity`, `unit_price`). DuckDB reads only those specific byte ranges over S3 HTTP requests, avoiding reading unused columns."* |
-| **Why partition by month, not by customer?** | *"Partitioning by 119,975 customers creates 119,975 tiny files (~400 bytes each). S3 throttles on metadata, and HTTP listing/footer overhead ruins query performance. 36 monthly partitions match Q1's monthly analytical granularity."* |
-| **Why not partition by day?** | *"Daily partitioning yields 1,096 files. Since Q1 evaluates cohort behavior at monthly intervals, day-level partitioning fragments storage without any analytical pruning advantage."* |
-| **Why target 1.2 MiB per file here?** | *"In production we target 100–512 MiB. For this 42 MiB lab dataset, 36 files at ~1.2 MiB minimize S3 latency: opening any Parquet file requires at least 2 HTTP GET requests (footer metadata + data pages)."* |
-| **Why is a Table Format justified?** | *"Refunds arrive up to 40 days late, requiring retroactive updates to previous months. A table format (Iceberg/DuckLake) provides ACID snapshot isolation, so reports never read corrupted or intermediate states during file updates."* |
-| **How does the date spine work?** | *"We use `generate_series` to create a continuous month sequence, cross join it with cohorts for valid activity windows, and left join spend, using `COALESCE(spend, 0.00)` to ensure no months are skipped."* |
-
+| **1. Walk me through your storage diagram.** | *"Data enters PostgreSQL, extracts to `s3://lab/raw/` Parquet files. DuckDB partitions them into `s3://lab/by_month/sale_month=YYYY-MM-01/`. A metadata table format tracks snapshot manifests. DuckDB uses HTTP Range requests to read footers and stream columns into vector memory."* |
+| **2. Why Parquet over CSV/JSON?** | *"Projection pushdown. Q1 only requires 4 columns (`customer_id`, `created_at`, `quantity`, `unit_price`). Parquet lets DuckDB request only those byte ranges, saving >80% I/O and network transfer over S3."* |
+| **3. Why partition by `sale_month` instead of `customer_id`?** | *"119,975 customers creates 119,975 directories with 400-byte files, killing MinIO with HTTP listing and footer latency. 36 monthly partitions matches Q1's monthly grain and enables partition pruning."* |
+| **4. Why not partition by day?** | *"1,096 daily partitions for 3 years causes excessive fragmentation without analytical benefit, because Q1 computes cohort metrics strictly at the monthly level."* |
+| **5. Why ~1.2 MiB file sizing?** | *"Every S3 Parquet read costs at least 2 HTTP GETs (footer + data). 36 files at ~1.2 MiB eliminates the small-files latency penalty and maximizes dictionary compression across the month."* |
+| **6. Is a Table Format warranted?** | *"Yes. Late refunds arrive up to 40 days later, modifying past months. A table format provides ACID snapshots so historical restatements never disrupt concurrent cohort queries."* |
+| **7. How do you implement Table Format with only 5 tools?** | *"We get table-format guarantees without an external Iceberg/JVM catalog by using dbt's atomic table/partition replacement transactions directly in DuckDB."* |
+| **8. How do you solve the date spine requirement?** | *"Real data is sparse. We generate a full 36-month spine with `generate_series`, cross join with cohorts to establish all valid lifecycle months, and left join spend with `COALESCE(spend, 0.00)` so no months are missing from the matrix."* |
+| **9. What happens to a published number when a refund arrives 40 days late?** | *"It is restated retroactively against the order month to preserve the true cohort spend evolution. The published number updates under a new snapshot."* |
+| **10. How do you handle refund redeliveries without a primary key?** | *"Land duplicates in raw; generate a surrogate hash key on `(order_id, refund_date, amount)` and deduplicate with window functions in staging."* |
