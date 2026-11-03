@@ -70,6 +70,7 @@ The pipeline processes data sequentially, running at most two containers at a ti
 ├── analysis/
 │   └── q1_cohort_spend_evolution.sql
 └── docs/
+    ├── checkpoint1_storage_design.md
     └── design_document.pdf
 ```
 
@@ -159,6 +160,8 @@ docker compose exec lab duckdb -c ".read analysis/q1_cohort_spend_evolution.sql"
 ---
 
 ## 6. Architectural Decisions for Question 1
+
+> 📖 **Full Checkpoint 1 (Week 6) Defense Document:** See [docs/checkpoint1_storage_design.md](docs/checkpoint1_storage_design.md) for the complete storage architecture diagram, detailed justifications, and oral evaluation defense questions.
 
 * **Storage Format (Parquet):** We store analytical datasets in columnar Parquet format. We rejected raw CSV and JSON lines because cohort reporting requires reading only four specific columns (`customer_id`, `created_at`, `quantity`, `unit_price`). Columnar projection eliminates scanning unused transaction attributes.
 * **Partition Key (`sale_month`):** We partition raw Parquet files by transaction month. We rejected partitioning by `customer_id` because 119,975 distinct values produce 119,975 tiny files of 16 lines each, causing extreme metadata request overhead. We rejected an unpartitioned single file because every monthly report would scan all historical years.
