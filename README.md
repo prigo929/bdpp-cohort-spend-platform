@@ -98,7 +98,7 @@ Run the following commands in order from your terminal to recreate the platform 
 ### Step 1: Clone the Repository
 
 ```bash
-git clone [https://github.com/](https://github.com/)[your-username]/bdpp-cohort-spend-platform.git
+git clone https://github.com/prigo929/bdpp-cohort-spend-platform.git
 cd bdpp-cohort-spend-platform
 ```
 
