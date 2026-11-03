@@ -1,0 +1,252 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 980" width="1440" height="980" style="background:#0f172a; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <linearGradient id="grad-header" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <linearGradient id="card-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#a855f7"/>
+    </marker>
+  </defs>
+
+  <!-- TITLE BAR -->
+  <rect x="30" y="25" width="1380" height="95" rx="14" fill="#1e293b" stroke="#334155" stroke-width="1.5" filter="url(#glow)"/>
+  <text x="60" y="65" font-size="24" font-weight="bold" fill="url(#grad-header)">Customer Cohort Spend Evolution (Q1 Mini Data Platform)</text>
+  <text x="60" y="95" font-size="14" fill="#94a3b8">Checkpoint 1: Storage Layer Architecture &amp; Partition Layout (MinIO / S3) &#8226; Master SDBIS (FEAA, UAIC)</text>
+  
+  <rect x="920" y="45" width="465" height="55" rx="8" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+  <text x="935" y="68" font-size="12" font-weight="bold" fill="#38bdf8">TEAM MEMBERS:</text>
+  <text x="935" y="88" font-size="13" fill="#e2e8f0">Prigoreanu Alin-Gabriel &#8226; Bîrgovan A. Mihai-Daniel &#8226; Schipor Ana-Maria</text>
+
+  <!-- LEFT: SOURCE SYSTEM (POSTGRESQL) -->
+  <g filter="url(#glow)">
+    <rect x="30" y="145" width="250" height="490" rx="14" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+    <rect x="30" y="145" width="250" height="45" rx="14" fill="#1d4ed8"/>
+    <rect x="30" y="175" width="250" height="15" fill="#1d4ed8"/>
+    <text x="45" y="174" font-size="16" font-weight="bold" fill="#ffffff">PostgreSQL Source (OLTP)</text>
+
+    <!-- Table: orders -->
+    <rect x="48" y="210" width="214" height="95" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <rect x="48" y="210" width="214" height="26" rx="8" fill="#334155"/>
+    <rect x="48" y="226" width="214" height="10" fill="#334155"/>
+    <text x="58" y="228" font-size="13" font-weight="bold" fill="#93c5fd">TABLE: orders</text>
+    <text x="58" y="252" font-size="11" fill="#cbd5e1">&#8226; id (PK)</text>
+    <text x="58" y="270" font-size="11" fill="#cbd5e1">&#8226; customer_id (119,975 users)</text>
+    <text x="58" y="288" font-size="11" fill="#cbd5e1">&#8226; created_at (order timestamp)</text>
+
+    <!-- Table: order_lines -->
+    <rect x="48" y="320" width="214" height="110" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <rect x="48" y="320" width="214" height="26" rx="8" fill="#334155"/>
+    <rect x="48" y="336" width="214" height="10" fill="#334155"/>
+    <text x="58" y="338" font-size="13" font-weight="bold" fill="#93c5fd">TABLE: order_lines</text>
+    <text x="58" y="362" font-size="11" fill="#cbd5e1">&#8226; id (PK) &#8226; order_id (FK)</text>
+    <text x="58" y="380" font-size="11" fill="#cbd5e1">&#8226; quantity (integer)</text>
+    <text x="58" y="398" font-size="11" fill="#cbd5e1">&#8226; unit_price (numeric)</text>
+    <text x="58" y="416" font-size="10" fill="#64748b">[Unused: product_id, discount, sku]</text>
+
+    <!-- Table: refunds -->
+    <rect x="48" y="445" width="214" height="125" rx="8" fill="#0f172a" stroke="#eab308" stroke-width="1.2"/>
+    <rect x="48" y="445" width="214" height="26" rx="8" fill="#854d0e"/>
+    <rect x="48" y="461" width="214" height="10" fill="#854d0e"/>
+    <text x="58" y="463" font-size="13" font-weight="bold" fill="#fef08a">FEED: refunds</text>
+    <text x="58" y="487" font-size="11" fill="#fde047">&#8226; No primary key</text>
+    <text x="58" y="505" font-size="11" fill="#fde047">&#8226; Redelivered duplicates</text>
+    <text x="58" y="523" font-size="11" fill="#fde047">&#8226; Late-arriving (up to 40 days!)</text>
+    <text x="58" y="543" font-size="10" fill="#cbd5e1">&#8226; order_id, refund_date, amount</text>
+
+    <!-- Source Note -->
+    <rect x="48" y="583" width="214" height="36" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <text x="56" y="605" font-size="10" fill="#94a3b8">OLTP Source Constraint: 1 active DB</text>
+  </g>
+
+  <!-- ARROW 1: Ingestion Python -->
+  <path d="M 280 270 L 350 270" fill="none" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="285" y="235" width="65" height="28" rx="4" fill="#0f172a" stroke="#0284c7" stroke-width="1"/>
+  <text x="290" y="252" font-size="9" font-weight="bold" fill="#38bdf8">extract.py</text>
+
+  <!-- ARROW 2: Ingestion Refunds -->
+  <path d="M 280 500 L 320 500 L 320 325 L 350 325" fill="none" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-orange)"/>
+
+  <!-- CENTER: MINIO OBJECT STORAGE (S3://LAB/) -->
+  <g filter="url(#glow)">
+    <rect x="360" y="145" width="680" height="670" rx="16" fill="#1e293b" stroke="#0ea5e9" stroke-width="2"/>
+    <rect x="360" y="145" width="680" height="48" rx="16" fill="#0369a1"/>
+    <rect x="360" y="177" width="680" height="16" fill="#0369a1"/>
+    <text x="380" y="176" font-size="17" font-weight="bold" fill="#ffffff">MinIO Object Storage &#8226; s3://lab/</text>
+    <text x="815" y="176" font-size="12" fill="#bae6fd">High Latency Per-Request / S3 HTTP API</text>
+
+    <!-- ZONE 1: RAW INGESTION ZONE -->
+    <rect x="380" y="210" width="640" height="135" rx="12" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="395" y="235" font-size="14" font-weight="bold" fill="#38bdf8">1. Raw Ingestion Zone &#8226; s3://lab/raw/</text>
+    <text x="730" y="235" font-size="11" fill="#94a3b8">[Immutable Landing &#8226; Source Fidelity]</text>
+
+    <!-- Raw Orders Box -->
+    <rect x="395" y="252" width="190" height="75" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+    <text x="405" y="274" font-size="12" font-weight="bold" fill="#e2e8f0">raw_orders.parquet</text>
+    <text x="405" y="295" font-size="10" fill="#94a3b8">Bulk export from PostgreSQL</text>
+    <text x="405" y="313" font-size="10" fill="#38bdf8">Preserves original schema</text>
+
+    <!-- Raw Lines Box -->
+    <rect x="605" y="252" width="190" height="75" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+    <text x="615" y="274" font-size="12" font-weight="bold" fill="#e2e8f0">raw_order_lines.parquet</text>
+    <text x="615" y="295" font-size="10" fill="#94a3b8">Transaction items dataset</text>
+    <text x="615" y="313" font-size="10" fill="#38bdf8">Complete item grain</text>
+
+    <!-- Raw Refunds Box -->
+    <rect x="815" y="252" width="190" height="75" rx="8" fill="#1e293b" stroke="#eab308" stroke-width="1"/>
+    <text x="825" y="274" font-size="12" font-weight="bold" fill="#fef08a">raw_refunds.parquet</text>
+    <text x="825" y="295" font-size="10" fill="#fde047">Preserves redeliveries as-is</text>
+    <text x="825" y="313" font-size="10" fill="#cbd5e1">Duplicates cleaned in staging</text>
+
+    <!-- ARROW DOWN: DUCKDB PARTITIONING -->
+    <path d="M 700 345 L 700 395" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrow-teal)"/>
+    <rect x="595" y="358" width="210" height="22" rx="5" fill="#064e3b" stroke="#059669" stroke-width="1"/>
+    <text x="605" y="373" font-size="10" font-weight="bold" fill="#a7f3d0">partition_storage.sql (DuckDB)</text>
+
+    <!-- ZONE 2: CLEAN PARTITIONED STORAGE LAYOUT (LEFT HALF) -->
+    <rect x="380" y="405" width="325" height="390" rx="12" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
+    <text x="395" y="432" font-size="14" font-weight="bold" fill="#34d399">2. Clean Partitioned Storage</text>
+    <text x="395" y="450" font-size="11" fill="#6ee7b7">s3://lab/by_month/sale_month=YYYY-MM-01/</text>
+
+    <!-- Partition item 1 -->
+    <rect x="395" y="468" width="295" height="52" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="405" y="490" font-size="11" font-weight="bold" fill="#f1f5f9">sale_month=2021-01-01/</text>
+    <text x="405" y="508" font-size="10" fill="#94a3b8">&#8226; data_0.parquet (~1.2 MiB, Snappy, Dict)</text>
+
+    <!-- Partition item 2 -->
+    <rect x="395" y="528" width="295" height="52" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="405" y="550" font-size="11" font-weight="bold" fill="#f1f5f9">sale_month=2021-02-01/</text>
+    <text x="405" y="568" font-size="10" fill="#94a3b8">&#8226; data_0.parquet (~1.2 MiB, Snappy, Dict)</text>
+
+    <!-- Ellipsis -->
+    <text x="515" y="600" font-size="16" font-weight="bold" fill="#64748b">.  .  .  .  .</text>
+    <text x="425" y="618" font-size="10" fill="#6ee7b7">[36 uniform monthly partitions spanning 3 full years]</text>
+
+    <!-- Partition item 36 -->
+    <rect x="395" y="632" width="295" height="52" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="405" y="654" font-size="11" font-weight="bold" fill="#f1f5f9">sale_month=2023-12-01/</text>
+    <text x="405" y="672" font-size="10" fill="#94a3b8">&#8226; data_0.parquet (~1.2 MiB, Snappy, Dict)</text>
+
+    <!-- Sizing strategy callout -->
+    <rect x="395" y="696" width="295" height="85" rx="8" fill="#064e3b" stroke="#059669" stroke-width="1"/>
+    <text x="405" y="716" font-size="10" font-weight="bold" fill="#a7f3d0">DECISION C: FILE SIZING STRATEGY</text>
+    <text x="405" y="734" font-size="10" fill="#e2e8f0">&#8226; ~1.2 MiB/month (100-512 MiB prod target)</text>
+    <text x="405" y="752" font-size="10" fill="#e2e8f0">&#8226; Avoids Small Files Problem on S3</text>
+    <text x="405" y="770" font-size="10" fill="#93c5fd">&#8226; Eliminates 2x GET round-trip penalty per tiny file</text>
+
+    <!-- ZONE 3: TABLE FORMAT METADATA (RIGHT HALF) -->
+    <rect x="725" y="405" width="295" height="390" rx="12" fill="#0f172a" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="740" y="432" font-size="14" font-weight="bold" fill="#c084fc">3. Metadata Layer / Table Format</text>
+    <text x="740" y="450" font-size="11" fill="#d8b4fe">Apache Iceberg / DuckLake Abstraction</text>
+
+    <!-- Metadata File 1 -->
+    <rect x="740" y="468" width="265" height="62" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="750" y="488" font-size="11" font-weight="bold" fill="#f3e8ff">v1.metadata.json</text>
+    <text x="750" y="505" font-size="10" fill="#cbd5e1">&#8226; Explicit schema definition &amp; types</text>
+    <text x="750" y="521" font-size="10" fill="#94a3b8">&#8226; Partition spec + Current snapshot ID</text>
+
+    <!-- Metadata File 2 -->
+    <rect x="740" y="538" width="265" height="62" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="750" y="558" font-size="11" font-weight="bold" fill="#f3e8ff">snap-20231103-01.avro</text>
+    <text x="750" y="575" font-size="10" fill="#cbd5e1">&#8226; Snapshot Manifest List (active files)</text>
+    <text x="750" y="591" font-size="10" fill="#a855f7">&#8226; Point-in-time reader isolation</text>
+
+    <!-- Metadata File 3 -->
+    <rect x="740" y="608" width="265" height="62" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="750" y="628" font-size="11" font-weight="bold" fill="#f3e8ff">manifest-file-01.avro</text>
+    <text x="750" y="645" font-size="10" fill="#cbd5e1">&#8226; File paths + Row counts</text>
+    <text x="750" y="661" font-size="10" fill="#cbd5e1">&#8226; Column stats (Min/Max values, Nulls)</text>
+
+    <!-- Table format callout -->
+    <rect x="740" y="680" width="265" height="101" rx="8" fill="#3b0764" stroke="#7e22ce" stroke-width="1"/>
+    <text x="750" y="700" font-size="10" font-weight="bold" fill="#f3e8ff">DECISION D: WHY TABLE FORMAT FOR Q1?</text>
+    <text x="750" y="718" font-size="10" fill="#e9d5ff">&#8226; 40-Day Late Refunds mutate March net spend</text>
+    <text x="750" y="736" font-size="10" fill="#e9d5ff">&#8226; ACID commits swap manifests atomically</text>
+    <text x="750" y="754" font-size="10" fill="#e9d5ff">&#8226; Zero dirty reads during background updates</text>
+    <text x="750" y="772" font-size="9" fill="#c084fc">5-tool implementation: dbt atomic replacement in DuckDB</text>
+  </g>
+
+  <!-- ARROWS FROM MINIO TO DUCKDB -->
+  <!-- Arrow 1: Read metadata -->
+  <path d="M 1040 480 L 1110 320" fill="none" stroke="#c084fc" stroke-width="2" stroke-dasharray="5,5" marker-end="url(#arrow-purple)"/>
+  <rect x="1035" y="370" width="85" height="22" rx="4" fill="#0f172a" stroke="#a855f7" stroke-width="1"/>
+  <text x="1040" y="385" font-size="9" font-weight="bold" fill="#d8b4fe">1. Read Meta</text>
+
+  <!-- Arrow 2: Targeted Range GET -->
+  <path d="M 705 520 L 1090 520 L 1110 350" fill="none" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <rect x="1035" y="430" width="85" height="32" rx="4" fill="#0f172a" stroke="#0284c7" stroke-width="1"/>
+  <text x="1040" y="445" font-size="9" font-weight="bold" fill="#38bdf8">2. Range GET</text>
+  <text x="1040" y="457" font-size="8" fill="#94a3b8">4 Columns only</text>
+
+  <!-- RIGHT: QUERY & TRANSFORMATION ENGINE (DUCKDB + DBT) -->
+  <g filter="url(#glow)">
+    <rect x="1120" y="145" width="290" height="390" rx="16" fill="#1e293b" stroke="#eab308" stroke-width="1.5"/>
+    <rect x="1120" y="145" width="290" height="48" rx="16" fill="#a16207"/>
+    <rect x="1120" y="177" width="290" height="16" fill="#a16207"/>
+    <text x="1135" y="176" font-size="16" font-weight="bold" fill="#ffffff">DuckDB + dbt Engine</text>
+
+    <rect x="1135" y="205" width="260" height="125" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <text x="1145" y="226" font-size="12" font-weight="bold" fill="#fde047">Vectorized In-Process OLAP</text>
+    <text x="1145" y="246" font-size="11" fill="#e2e8f0">&#8226; Projection Pushdown:</text>
+    <text x="1155" y="264" font-size="10" fill="#38bdf8">Reads ONLY 4 columns (saves &gt;80% I/O)</text>
+    <text x="1145" y="284" font-size="11" fill="#e2e8f0">&#8226; Partition Pruning:</text>
+    <text x="1155" y="302" font-size="10" fill="#34d399">Skips entire sale_month folders</text>
+    <text x="1145" y="320" font-size="10" fill="#94a3b8">&#8226; HTTP Range requests over MinIO</text>
+
+    <!-- dbt Layers Box -->
+    <rect x="1135" y="340" width="260" height="180" rx="8" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+    <text x="1145" y="360" font-size="12" font-weight="bold" fill="#fdba74">dbt Transformation Pipeline</text>
+    <text x="1145" y="380" font-size="10" fill="#e2e8f0">1. Staging Views (schema &amp; deduplication):</text>
+    <text x="1155" y="396" font-size="10" fill="#94a3b8">stg_orders, stg_lines, stg_refunds</text>
+    <text x="1145" y="418" font-size="10" fill="#e2e8f0">2. Intermediate Models (Q1 specific):</text>
+    <text x="1155" y="434" font-size="10" fill="#38bdf8">int_cohort_customers (first_order_month)</text>
+    <text x="1155" y="450" font-size="10" fill="#34d399">int_date_spine (generate_series: 36 mos)</text>
+    <text x="1145" y="472" font-size="10" fill="#e2e8f0">3. Dense Cartesian Product &amp; Left Join:</text>
+    <text x="1155" y="488" font-size="10" fill="#a7f3d0">All (Cohort Month &#215; Activity Month)</text>
+    <text x="1155" y="506" font-size="10" fill="#fde047">COALESCE(spend, 0.00) for zero gaps!</text>
+  </g>
+
+  <!-- ARROW DOWN TO FINAL MART -->
+  <path d="M 1265 535 L 1265 595" fill="none" stroke="#eab308" stroke-width="2.5" marker-end="url(#arrow-orange)"/>
+
+  <!-- FINAL ANALYTICAL MART (Q1 OUTPUT) -->
+  <g filter="url(#glow)">
+    <rect x="1080" y="605" width="330" height="210" rx="14" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <rect x="1080" y="605" width="330" height="42" rx="14" fill="#15803d"/>
+    <rect x="1080" y="632" width="330" height="15" fill="#15803d"/>
+    <text x="1095" y="632" font-size="15" font-weight="bold" fill="#ffffff">Analytical Mart &#8226; Q1 Output</text>
+
+    <rect x="1095" y="658" width="300" height="142" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <text x="1105" y="680" font-size="12" font-weight="bold" fill="#86efac">fct_cohort_monthly_spend</text>
+    <text x="1105" y="700" font-size="11" fill="#e2e8f0">&#8226; Grain: (cohort_month, activity_month)</text>
+    <text x="1105" y="718" font-size="11" fill="#e2e8f0">&#8226; Metrics: net_cohort_spend, active_users</text>
+    <text x="1105" y="736" font-size="11" fill="#4ade80">&#8226; Guaranteed: NO GAPS (0.00 padded)</text>
+    <text x="1105" y="756" font-size="10" fill="#94a3b8">&#8226; Refunds tied retroactively to order month</text>
+    <text x="1105" y="776" font-size="10" font-weight="bold" fill="#38bdf8">&#8226; Answers Q1: Cohort Spend Evolution Matrix</text>
+  </g>
+
+  <!-- BOTTOM FOOTER BAR WITH 4 TECHNICAL DECISIONS SUMMARY -->
+  <rect x="30" y="835" width="1380" height="115" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="50" y="862" font-size="13" font-weight="bold" fill="#38bdf8">CHECKPOINT 1 MANDATORY DECISIONS SUMMARY (DEFENDED STRICTLY FOR Q1):</text>
+  
+  <text x="50" y="888" font-size="11" fill="#e2e8f0"><tspan font-weight="bold" fill="#93c5fd">A. File Format:</tspan> Parquet (Columnar projection pushdown reads only 4 columns, saves &gt;80% network I/O; rejected CSV &amp; JSON).</text>
+  <text x="50" y="908" font-size="11" fill="#e2e8f0"><tspan font-weight="bold" fill="#93c5fd">B. Partition Key:</tspan> sale_month=YYYY-MM-01 (Matches Q1 monthly grain, enables partition pruning; rejected customer_id [119,975 tiny files] &amp; daily).</text>
+  <text x="50" y="928" font-size="11" fill="#e2e8f0"><tspan font-weight="bold" fill="#93c5fd">C. File Sizing:</tspan> ~1.2 MiB/partition (Avoids S3 small-files HTTP latency; 2 GETs per file [footer + data]; target 100-512 MiB in prod).</text>
+  <text x="50" y="948" font-size="11" fill="#e2e8f0"><tspan font-weight="bold" fill="#93c5fd">D. Table Format:</tspan> Warranted due to 40-day late refunds mutating past months (ACID snapshot isolation; implemented via dbt DuckDB atomic swap).</text>
+</svg>

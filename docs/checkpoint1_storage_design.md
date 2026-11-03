@@ -3,6 +3,10 @@
 **Course:** Big Data: Persistence Systems and Data Processing Languages  
 **Academic Program:** Master SDBIS, Faculty of Economics and Business Administration (FEAA), Alexandru Ioan Cuza University of Iași  
 **Lecturer:** Ionuț Hrubaru, PhD  
+**Project Team:**
+* **Prigoreanu Alin-Gabriel** (Architecture design, DuckDB pipeline, dbt modeling)
+* **Bîrgovan A. Mihai-Daniel** (PostgreSQL ingestion, MinIO extraction)
+* **Schipor Ana-Maria** (Data quality testing, dimensional modeling)  
 **Project:** Customer Cohort Spend Evolution (Q1 Mini Data Platform)  
 **Deliverable Scope:** Storage Layer Architecture & Technical Decision Defense (Formative evaluation, half-laboratory, no slides, no running code required yet, individual oral defense).
 
@@ -15,6 +19,12 @@
 ## 1. Storage Architecture Diagram (MinIO / S3)
 
 The architecture below captures the end-to-end data lifecycle on MinIO (`s3://lab/`) conforming strictly to the platform stack (PostgreSQL, Python, DuckDB, dbt, MinIO).
+
+> 🖼️ **Visual Architecture Diagram Files:**
+> * **Vector Format (SVG):** [docs/diagrams/storage_architecture.svg](diagrams/storage_architecture.svg)
+> * **High-Resolution Image (PNG):** [docs/diagrams/storage_architecture.png](diagrams/storage_architecture.png)
+> 
+> ![Storage Layer Architecture Diagram](diagrams/storage_architecture.png)
 
 ### 1.1 Architecture Flowchart (Mermaid)
 

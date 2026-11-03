@@ -9,13 +9,17 @@ This platform answers Question 1 from Annex A:
 
 ## 1. Project Team
 
-* **Alin-Gabriel Prigoreanu** (Architecture design, DuckDB pipeline, dbt modeling)
-* [Team Member 2] (PostgreSQL ingestion, MinIO extraction)
-* [Team Member 3] (Data quality testing, dimensional modeling)
+* **Prigoreanu Alin-Gabriel** (Architecture design, DuckDB pipeline, dbt modeling)
+* **Bîrgovan A. Mihai-Daniel** (PostgreSQL ingestion, MinIO extraction)
+* **Schipor Ana-Maria** (Data quality testing, dimensional modeling)
 
 ---
 
 ## 2. Platform Architecture
+
+> 📊 **Storage Architecture Diagram:** Available in [High-Res PNG](docs/diagrams/storage_architecture.png) and [Vector SVG](docs/diagrams/storage_architecture.svg). See full design details in [docs/checkpoint1_storage_design.md](docs/checkpoint1_storage_design.md).
+
+![Platform Storage Architecture](docs/diagrams/storage_architecture.png)
 
 The pipeline processes data sequentially, running at most two containers at a time:
 
@@ -71,7 +75,10 @@ The pipeline processes data sequentially, running at most two containers at a ti
 │   └── q1_cohort_spend_evolution.sql
 └── docs/
     ├── checkpoint1_storage_design.md
-    └── design_document.pdf
+    ├── design_document.pdf
+    └── diagrams/
+        ├── storage_architecture.png
+        └── storage_architecture.svg
 ```
 
 ---
