@@ -91,9 +91,9 @@ The pipeline processes data sequentially, running at most two containers at a ti
 
 ---
 
-## 5. End-to-End Reproduction Guide
+## 5. Planned End-to-End Reproduction Guide (later project work)
 
-Run the following commands in order from your terminal to recreate the platform and verify the analytical answer.
+The commands below describe the planned final platform. This Week 6 submission contains storage design and measurement evidence; the extraction/dbt/analysis files in the planned tree are not delivered yet. For the checkpoint, use Q01_storage.pdf and Q01_storage.sql. Actual W5 evidence is saved in results/w05_actual/.
 
 ### Step 1: Clone the Repository
 
@@ -171,7 +171,7 @@ docker compose exec lab duckdb -c ".read analysis/q1_cohort_spend_evolution.sql"
 > 📖 **Full Checkpoint 1 (Week 6) Defense Document:** See [docs/checkpoint1_storage_design.md](docs/checkpoint1_storage_design.md) for the complete storage architecture diagram, detailed justifications, and oral evaluation defense questions.
 
 * **Storage Format (Parquet):** We store analytical datasets in columnar Parquet format. We rejected raw CSV and JSON lines because cohort reporting requires reading only four specific columns (`customer_id`, `created_at`, `quantity`, `unit_price`). Columnar projection eliminates scanning unused transaction attributes.
-* **Partition Key (`sale_month`):** We partition raw Parquet files by transaction month. We rejected partitioning by `customer_id` because 119,975 distinct values produce 119,975 tiny files of 16 lines each, causing extreme metadata request overhead. We rejected an unpartitioned single file because every monthly report would scan all historical years.
+* **Partition Key (`sale_month`):** We partition raw Parquet files by transaction month. We rejected partitioning by `customer_id` because 119,975 distinct values produce 119,975 tiny files of 16 lines each, causing extreme metadata request overhead. We rejected an unpartitioned single file because monthly refreshes benefit from explicit partition filters and bounded rewrites; one sorted Parquet file can still skip row groups.
 * **Complete Date Spine:** Customers do not purchase in every consecutive month. We generate a complete month sequence using `generate_series`. Months without orders receive explicit zero values (`0.00`) via left joins, preventing missing periods from breaking cohort retention metrics.
 * **Late-Arriving Refunds:** The payment provider delivers refunds up to 40 days late. In our fact table, refunds update net revenue historically against the order placement month rather than the refund arrival date, keeping cohort spend comparisons consistent.
 
@@ -190,3 +190,6 @@ To remove all containers and delete local data volumes:
 ```bash
 docker compose down -v
 ```
+
+
+Checkpoint corrections are documented in [MINIMAL_CHANGES.md](MINIMAL_CHANGES.md). Earlier audit notes describe the superseded broad rewrite. Use `tools/render_minimal.py` for the current portrait PDF and original-style diagram, not the earlier build scripts.
